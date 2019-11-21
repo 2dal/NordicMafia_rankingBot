@@ -6,17 +6,21 @@ import time
 import threading
 
 
-class NordicBot:
+class NordicBot():
 
     def __init__(self, username, password):
-        # If the chromedriver is not placed in the same folder as the code you need to change the path to the complete path of the cromedriver.
-        # for an example self.chromeDrivePah = 'C:/Users/<USER>/Documents/chromedriver_win32/chromedriver.exe'
-        self.chromeDrivePath = 'chromedriver.exe'
+        """Initializing everything needed for the the bot to function. Mostly webpages and cooldowns. The most
+        important part here is to download chromedriver (same version as your chrome version you are running on your
+        computer) and link to it"""
         self.user_name = username
         self.password = password
         os.environ["LANG"] = "en_US.UTF-8"
+
+        # Here you need to link to your version of chromedriver
         self.driver = selenium.webdriver.Chrome(
-            executable_path=self.chromeDrivePath)
+            executable_path='chromedriver.exe')
+
+        # Initializing the url's, if these ever change you need to change them here as well
         self.krim_url = 'https://www.nordicmafia.org/index.php?p=kriminalitet'
         self.bank_url = 'https://www.nordicmafia.org/index.php?p=bank'
         self.fight_url = 'https://www.nordicmafia.org/index.php?p=fightclub'
@@ -24,56 +28,66 @@ class NordicBot:
         self.fengsel_url = 'https://www.nordicmafia.org/index.php?p=jail'
         self.utpressing_url = 'https://www.nordicmafia.org/index.php?p=blackmail'
         self.iFengsel = False
-        self.bil_pause = 6 * 60  # 6 min
-        self.krim_pause = 3 * 60  # 3 min
-        self.fight_pause = 2 * 60  # 2 min
+        # Initializing the cooldown periods, if these ever change you need to change the code as well
+        self.bil_pause = 6 * 60          # 6 min
+        self.krim_pause = 3 * 60         # 3 min
+        self.fight_pause = 2 * 60        # 2 min
         self.utpressing_pause = 16 * 60  # 16 min
 
-        # Open the website
+
+        # Open the website and logging in
         self.driver.get('https://www.nordicmafia.org')
 
-        time.sleep(1)
-        # Select the id box
+        time.sleep(.5)
         self.id_box = self.driver.find_element_by_name('username')
-        # Equivalent Outcome!
         self.pass_box = self.driver.find_element_by_name('password')
         # Send id information
         self.id_box.send_keys(self.user_name)
         self.pass_box.send_keys(self.password)
-        #
         time.sleep(.1)
         # # Find login button
         self.login_button = self.driver.find_element_by_name('login')
-        # Click login
         self.login_button.click()
 
-        self.nesteKrimTime = self.nesteUtprTime = self.nestebilTime = self.nesteFightTime = time.time()  # + 60 * 16
-        input('Look for captcha and press enter')
+        # Initializing the time until next acion can be preformed. If the cooldown period is active you can change
+        # the last digit (the zero) to the amount of minutes the cooldown is set for. It is not
+        self.nesteKrimTime = self.nesteUtprTime = self.nestebilTime = self.nesteFightTime = time.time() + 60 * 0
+
+        # Captcha are often active and need to be filled out before the code can be continied
+        input('Open the "kriminalitet" tab, and fill out captcha if there are any. Press enter when done')
 
     def banken(self):
+        """deposits all the cash on hand into the bank account """
         self.driver.get(self.bank_url)
         sett_inn_alt = self.driver.find_element_by_name('depositAll')
         sett_inn_alt.click()
 
     def sjekkNettbanken(self):
+        """:return amount of money on hand"""
+        time.sleep(0.5)  # The webpage needs time to load
         try:
             lommebok = self.driver.find_element_by_id('money_hand')
         except selenium.common.exceptions.StaleElementReferenceException:
-            # Dette er en skitte skitten kode. Hvis lommeboka har endret før den rekker å gi tallet, så venter
-            # den et sekund og kaller seg selv
             time.sleep(1)
             return self.sjekkNettbanken()
         return int(lommebok.text.replace(',', ''))
 
     def hvisPengerIBanken(self):
+        """Checks if there is money on hand and deposits all if there is. This is to limit the amount of actions
+        performed on the site """
         if not self.sjekkNettbanken() == 0:
             self.banken()
 
     def random_deyal(self):
+        """Adds a random time delay between 0.1 and 10 seconds"""
         tid = randint(1, 100) / 10.
         time.sleep(tid)
 
     def kriminalitet(self):
+        """Opens the crime tab and performs a random crime-action. This is done to keep the success percentage of all
+        crimes high. If you prefer that only a certain crime action is performed you can change str(randint(0,
+        4)) to str(x) where x is a number between 0 and 4 correspinding to crime action perfer to be performed
+        :return time-point for when this action cool-down has passed """
         self.driver.get(self.krim_url)
         time.sleep(.4)
         krim_button = self.driver.find_element_by_id('rowid_table_select_krimaction' + str(randint(0, 4)))
@@ -82,6 +96,9 @@ class NordicBot:
         return newTime
 
     def fightClub(self):
+        """Opens the fightclub tab and performs a workout-action. The last option is chosen, as this is the most
+        efficient one.
+        :return time-point for when this action cool-down has passed """
         self.driver.get(self.fight_url)
         time.sleep(1.2)
         fight_button = self.driver.find_element_by_id('rowid_table_select_fcworkout3')
@@ -90,6 +107,8 @@ class NordicBot:
         return newTime
 
     def utpressing(self):
+        """ Opens the blackmail tab and performs the blackmail action on a random user
+        :return time-point for when this action cool-down has passed"""
         self.driver.get(self.utpressing_url)
         tilfeldig_spiller = self.driver.find_element_by_id('sel_1')
         tilfeldig_spiller.click()
@@ -99,8 +118,10 @@ class NordicBot:
         return newTime
 
     def biltyveri(self):
+        """ Opens the gta tab and performs a gta-action and then calls the sellFirstCar() method
+        :return time-point for when this action cool-down has passed"""
         self.driver.get(self.biltyv_url)
-        bil_paa_gata = self.driver.find_element_by_id('rowid_table_select_gtaaction' + str(randint(0, 3)))
+        bil_paa_gata = self.driver.find_element_by_id('rowid_table_select_gtaaction3')
         bil_paa_gata.click()
         newTime = time.time() + self.bil_pause
         try:
@@ -112,13 +133,18 @@ class NordicBot:
         return newTime
 
     def sellFirstCar(self):
+        """Opens the gta tab. selects the first car in the row, sells it and puts the money in the bank"""
         self.driver.get(self.biltyv_url)
         firstCar = self.driver.find_element_by_xpath('//*[contains(@id, "carSelect")]')
         firstCar.click()
         selgValgte = self.driver.find_element_by_name('doSell')
         selgValgte.click()
+        time.sleep(1.1)
+        self.banken()
 
     def check_fengsel(self):
+        """ Checks if the user is in jail by trying to put money in the bank. If this action fails, the user is in
+        jail, as this is the only time the user does not have access to the bank-tab """
         try:
             self.banken()
             return False
@@ -153,6 +179,7 @@ class NordicBot:
 
 
 if __name__ == '__main__':
+    """Write in one or multiple usernames and passwords, press enter when you are done. """
     list_of_user_name = []
     list_of_password = []
     while 1:
